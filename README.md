@@ -25,7 +25,7 @@ command = "drewbitt.jiratui.open"
 description = "JiraTUI: open"
 ```
 
-Run `herdr server reload-config`, then press **Ctrl+B, then Shift+J** to open JiraTUI in a new tab. You can also launch it without a keybinding:
+Run `herdr server reload-config`, then press **your Herdr prefix, then Shift+J** to open JiraTUI in a new tab. You can also launch it without a keybinding:
 
 ```sh
 herdr plugin action invoke drewbitt.jiratui.open
