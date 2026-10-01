@@ -20,6 +20,18 @@ Your existing JiraTUI config works, including `JIRA_TUI_CONFIG_FILE`. Each open 
 
 Herdr's default prefix is Ctrl+B: release it, then press the next key. Ctrl+B, then ? shows active [Herdr bindings](https://herdr.dev/docs/keyboard/). If your Herdr config assigns Ctrl+Alt+D to an action, remove or change that binding so the plugin receives the shortcut.
 
+To add a launcher under Herdr's **custom** shortcuts, append this to `~/.config/herdr/config.toml`:
+
+```toml
+[[keys.command]]
+key = "prefix+shift+j"
+type = "plugin_action"
+command = "drewbitt.jiratui.open"
+description = "JiraTUI: open"
+```
+
+Run `herdr server reload-config`, then press Ctrl+B followed by Shift+J to open JiraTUI. The launcher appears in Herdr's binding help; the panel's Ctrl+Alt+D shortcut appears in JiraTUI's footer.
+
 ## Develop
 
 ```sh
