@@ -1,10 +1,10 @@
 # herdr-jiratui
 
-[JiraTUI](https://github.com/whyisdifficult/jiratui) in Herdr, with one extra shortcut: Ctrl+Alt+D sends the selected issue to a running agent.
+[JiraTUI](https://github.com/whyisdifficult/jiratui) in a Herdr tab, with an action to send issues to your agents.
 
 ![JiraTUI in a Herdr panel](docs/screenshot.png)
 
-JiraTUI handles the UI, credentials, and Jira API. This plugin adds an agent picker and sends the issue's key, summary, link, and description through `herdr agent prompt`.
+The plugin launches JiraTUI with an agent picker. JiraTUI handles the UI, credentials, and Jira API; the plugin sends the selected issue's key, summary, link, and description through `herdr agent prompt`.
 
 ## Use
 
@@ -13,14 +13,9 @@ Requires Herdr 0.9.3+ and [uv](https://docs.astral.sh/uv/). uv installs the proj
 ```sh
 uvx jiratui configure create  # skip if JiraTUI is already configured
 herdr plugin install drewbitt/herdr-jiratui
-herdr plugin action invoke drewbitt.jiratui.open
 ```
 
-Your existing JiraTUI config works, including `JIRA_TUI_CONFIG_FILE`. Each open action creates a tab. Select an issue and press Ctrl+Alt+D directly (Ctrl+Option+D on macOS), without Herdr's prefix. Use Up/Down to choose an idle or done agent, Enter to send, or Esc to cancel.
-
-Herdr's default prefix is Ctrl+B: release it, then press the next key. Ctrl+B, then ? shows active [Herdr bindings](https://herdr.dev/docs/keyboard/). If your Herdr config assigns Ctrl+Alt+D to an action, remove or change that binding so the plugin receives the shortcut.
-
-To add a launcher under Herdr's **custom** shortcuts, append this to `~/.config/herdr/config.toml`:
+Add a launch shortcut to `~/.config/herdr/config.toml`:
 
 ```toml
 [[keys.command]]
@@ -30,7 +25,15 @@ command = "drewbitt.jiratui.open"
 description = "JiraTUI: open"
 ```
 
-Run `herdr server reload-config`, then press Ctrl+B followed by Shift+J to open JiraTUI. The launcher appears in Herdr's binding help; the panel's Ctrl+Alt+D shortcut appears in JiraTUI's footer.
+Run `herdr server reload-config`, then press **Ctrl+B, then Shift+J** to open JiraTUI in a new tab. You can also launch it without a keybinding:
+
+```sh
+herdr plugin action invoke drewbitt.jiratui.open
+```
+
+Use the plugin launcher for delegation. The regular `jiratui` binary runs upstream JiraTUI without the agent picker. The plugin uses your existing JiraTUI configuration, including `JIRA_TUI_CONFIG_FILE`, and opens a full-width tab to leave room for its search controls.
+
+Select an issue and press **Ctrl+Alt+D** (Ctrl+Option+D on macOS). Use Up/Down to choose an idle or done agent, Enter to send, or Esc to cancel. If Herdr already binds Ctrl+Alt+D, change that binding so the panel receives it.
 
 ## Develop
 
