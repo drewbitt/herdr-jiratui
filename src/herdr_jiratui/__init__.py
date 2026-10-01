@@ -16,8 +16,9 @@ from rich.text import Text
 from textual import on, work
 from textual.binding import Binding
 from textual.containers import Vertical
+from textual.reactive import reactive
 from textual.screen import ModalScreen
-from textual.widgets import Label, OptionList
+from textual.widgets import DataTable, Label, OptionList
 
 
 async def herdr(*args: str) -> dict:
@@ -102,7 +103,20 @@ class HerdrJiraApp(JiraApp):
     # Textual resolves inherited relative CSS paths against the subclass's module.
     CSS_PATH = str(files("jiratui").joinpath(JiraApp.CSS_PATH))
     BINDINGS = [Binding("alt+ctrl+d", "delegate", "Delegate", priority=True)]
-    _delegating = False
+    _delegating = reactive(False, bindings=True)
+
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        if action != "delegate":
+            return super().check_action(action, parameters)
+        if not isinstance(self.screen, MainScreen):
+            return False
+        if self._delegating or not self.screen.search_results_table.current_work_item_key:
+            return None
+        return True
+
+    @on(DataTable.RowHighlighted)
+    def refresh_delegate_binding(self) -> None:
+        self.refresh_bindings()
 
     @work(group="delegate")
     async def action_delegate(self) -> None:
@@ -129,7 +143,7 @@ class HerdrJiraApp(JiraApp):
             target = await self.push_screen_wait(AgentPicker(key, agents))
             if target is None:
                 return
-            response = await self.api.get_issue(key)
+            response = await self.api.get_issue(key, fields=["summary", "description"])
             if not response.success or not response.result or not response.result.issues:
                 self.notify("Could not retrieve the issue from Jira.", severity="error")
                 return

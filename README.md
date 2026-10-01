@@ -21,8 +21,14 @@ herdr plugin action invoke drewbitt.jiratui.open
 ```
 
 Your existing JiraTUI config works, including `JIRA_TUI_CONFIG_FILE`.
-Each open action creates a tab. Select an issue, press Ctrl+Alt+D, then Enter
-to send it. Esc cancels. The picker shows agents that are idle or done.
+Each open action creates a tab. Select an issue and press Ctrl+Alt+D directly
+(Ctrl+Option+D on macOS), without Herdr's prefix. Use Up/Down to choose an idle or
+done agent, Enter to send, or Esc to cancel.
+
+Herdr's default prefix is Ctrl+B: release it, then press the next key.
+Ctrl+B, then ? shows active [Herdr bindings](https://herdr.dev/docs/keyboard/).
+If your Herdr config assigns Ctrl+Alt+D to an action, remove or change that
+binding so the plugin receives the shortcut.
 
 ## Develop
 

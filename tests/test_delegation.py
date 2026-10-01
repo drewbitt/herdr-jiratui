@@ -32,9 +32,6 @@ ISSUE = {
     "fields": {
         "summary": SUMMARY,
         "description": DESCRIPTION,
-        "status": {"id": "1", "name": "To Do", "statusCategory": {"key": "new"}},
-        "issuetype": {"id": "1", "name": "Task", "subtask": False},
-        "project": {"id": "1", "key": "PROJ", "name": "Test"},
     },
 }
 
@@ -61,6 +58,7 @@ if args[:2] == ['agent', 'list']:
         {'pane_id': 'w1:p3', 'agent': 'codex', 'agent_status': 'working', 'cwd': '/busy'},
         {'pane_id': 'w1:p4', 'agent': 'claude', 'agent_status': 'blocked', 'cwd': '/blocked'},
         {'pane_id': 'w1:p5', 'agent_status': 'unknown'},
+        {'pane_id': 'w1:p6', 'agent': 'codex', 'agent_status': 'done', 'cwd': '/second repo'},
     ] if mode != 'empty' else []
     result = {'agents': agents, 'type': 'agent_list'}
 elif args[:2] == ['agent', 'get']:
@@ -159,25 +157,29 @@ async def test_delegate_selected_issue_once_with_terminal_shortcut(app, fake_her
     # The real terminal exposed a modifier-order bug that literal pilot keys missed.
     key = next(event.key for event in XTermParser().feed("\x1b[100;7u") if isinstance(event, Key))
     async with app.run_test(size=(120, 40)) as pilot:
+        assert not app.screen.active_bindings[key].enabled
         await select_issue(app, pilot)
+        assert app.screen.active_bindings[key].enabled
         await pilot.press(key, key)
         await wait_for_picker(app, pilot)
-        assert app.screen.query_one(OptionList).option_count == 1
+        assert app.screen.query_one(OptionList).option_count == 2
         await pilot.press(key)
-        await pilot.press("enter")
+        await pilot.press("down", "enter")
         await app.workers.wait_for_complete()
         calls = commands(fake_herdr)
         assert [call[:3] for call in calls] == [
             ["agent", "list"],
-            ["agent", "get", "w1:p2"],
-            ["agent", "prompt", "w1:p2"],
+            ["agent", "get", "w1:p6"],
+            ["agent", "prompt", "w1:p6"],
         ]
         sent = calls[-1]
         assert SUMMARY in sent[3]
         assert "https://jira.example.test/browse/PROJ-1" in sent[3]
         assert "First line.\n\nSecond line." in sent[3]
         assert jira.call_count == 1
+        assert jira.calls[0].request.url.params["fields"] == "summary,description"
         assert isinstance(app.screen, MainScreen)
+        assert app.screen.active_bindings[key].enabled
 
 
 async def test_cancel_keeps_jiratui_and_sends_nothing(app, fake_herdr, jira):
