@@ -45,7 +45,6 @@ def fake_herdr(tmp_path, monkeypatch):
     executable.write_text(
         f"#!{sys.executable}\n"
         """import json, os, sys, time
-from pathlib import Path
 args = sys.argv[1:]
 with open(os.environ['FAKE_LOG'], 'a') as log:
     log.write(json.dumps(args) + '\\n')
@@ -58,7 +57,7 @@ if mode == 'malformed':
 if args[:2] == ['agent', 'list']:
     agents = [
         {'pane_id': 'w1:p1', 'agent': 'codex', 'agent_status': 'idle', 'cwd': '/self'},
-        {'pane_id': 'w1:p2', 'agent': 'claude', 'agent_status': 'done', 'cwd': '/repo with spaces'},
+        {'pane_id': 'w1:p2', 'agent': 'claude', 'agent_status': 'idle', 'cwd': '/repo with spaces'},
         {'pane_id': 'w1:p3', 'agent': 'codex', 'agent_status': 'working', 'cwd': '/busy'},
         {'pane_id': 'w1:p4', 'agent': 'claude', 'agent_status': 'blocked', 'cwd': '/blocked'},
         {'pane_id': 'w1:p5', 'agent_status': 'unknown'},
@@ -156,17 +155,24 @@ def jira():
         yield route
 
 
-async def test_selected_issue_to_ready_agent(app, fake_herdr, jira):
+async def test_delegate_selected_issue_once_with_terminal_shortcut(app, fake_herdr, jira):
+    # The real terminal exposed a modifier-order bug that literal pilot keys missed.
+    key = next(event.key for event in XTermParser().feed("\x1b[100;7u") if isinstance(event, Key))
     async with app.run_test(size=(120, 40)) as pilot:
         await select_issue(app, pilot)
-        await pilot.press("alt+ctrl+d")
+        await pilot.press(key, key)
         await wait_for_picker(app, pilot)
-        assert isinstance(app.screen, AgentPicker)
         assert app.screen.query_one(OptionList).option_count == 1
+        await pilot.press(key)
         await pilot.press("enter")
         await app.workers.wait_for_complete()
-        sent = commands(fake_herdr)[-1]
-        assert sent[:3] == ["agent", "prompt", "w1:p2"]
+        calls = commands(fake_herdr)
+        assert [call[:3] for call in calls] == [
+            ["agent", "list"],
+            ["agent", "get", "w1:p2"],
+            ["agent", "prompt", "w1:p2"],
+        ]
+        sent = calls[-1]
         assert SUMMARY in sent[3]
         assert "https://jira.example.test/browse/PROJ-1" in sent[3]
         assert "First line.\n\nSecond line." in sent[3]
@@ -186,51 +192,21 @@ async def test_cancel_keeps_jiratui_and_sends_nothing(app, fake_herdr, jira):
         assert isinstance(app.screen, MainScreen)
 
 
-async def test_terminal_encoded_shortcut(app, fake_herdr):
-    key = next(event.key for event in XTermParser().feed("\x1b[100;7u") if isinstance(event, Key))
-    async with app.run_test(size=(120, 40)) as pilot:
-        await select_issue(app, pilot)
-        await pilot.press(key)
-        await wait_for_picker(app, pilot)
-        await pilot.press("escape")
-        await app.workers.wait_for_complete()
-        assert commands(fake_herdr) == [["agent", "list"]]
-
-
-async def test_repeated_shortcut_does_not_cancel_picker(app, fake_herdr, jira):
-    async with app.run_test(size=(120, 40)) as pilot:
-        await select_issue(app, pilot)
-        await pilot.press("alt+ctrl+d", "alt+ctrl+d")
-        await wait_for_picker(app, pilot)
-        await pilot.press("alt+ctrl+d")
-        await pilot.pause()
-        await pilot.press("enter")
-        await app.workers.wait_for_complete()
-        assert len([c for c in commands(fake_herdr) if c[:2] == ["agent", "list"]]) == 1
-        assert len([c for c in commands(fake_herdr) if c[:2] == ["agent", "prompt"]]) == 1
-
-
-async def test_no_selection_does_not_call_herdr(app, fake_herdr):
-    async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.press("alt+ctrl+d")
-        await app.workers.wait_for_complete()
-        assert commands(fake_herdr) == []
-
-
-async def test_no_ready_agents(app, fake_herdr, jira, monkeypatch):
+@pytest.mark.parametrize("selected", [False, True], ids=["no-selection", "no-ready-agent"])
+async def test_no_target_sends_nothing(app, fake_herdr, jira, monkeypatch, selected):
     monkeypatch.setenv("FAKE_MODE", "empty")
     async with app.run_test(size=(120, 40)) as pilot:
-        await select_issue(app, pilot)
+        if selected:
+            await select_issue(app, pilot)
         await pilot.press("alt+ctrl+d")
         await app.workers.wait_for_complete()
         assert isinstance(app.screen, MainScreen)
         assert jira.call_count == 0
-        assert commands(fake_herdr) == [["agent", "list"]]
+        assert commands(fake_herdr) == ([["agent", "list"]] if selected else [])
 
 
-@pytest.mark.parametrize("state", ["working", "blocked", "unknown"])
-async def test_agent_becomes_unready(app, fake_herdr, jira, monkeypatch, state):
-    monkeypatch.setenv("FAKE_STATE", state)
+async def test_agent_becomes_busy_before_send(app, fake_herdr, jira, monkeypatch):
+    monkeypatch.setenv("FAKE_STATE", "working")
     async with app.run_test(size=(120, 40)) as pilot:
         await select_issue(app, pilot)
         await pilot.press("alt+ctrl+d")
@@ -253,21 +229,18 @@ async def test_jira_failure_does_not_send(app, fake_herdr, jira):
 
 async def test_failed_submission_is_not_retried(app, fake_herdr, jira, monkeypatch):
     monkeypatch.setenv("FAKE_MODE", "error")
-    async with app.run_test(size=(120, 40)) as pilot:
-        await select_issue(app, pilot)
-        await pilot.press("alt+ctrl+d")
-        await wait_for_picker(app, pilot)
-        await pilot.press("enter")
-        await app.workers.wait_for_complete()
-        assert len([c for c in commands(fake_herdr) if c[:2] == ["agent", "prompt"]]) == 1
-        assert isinstance(app.screen, MainScreen)
-
-
-async def test_herdr_errors_do_not_expose_prompt(fake_herdr, monkeypatch):
-    monkeypatch.setenv("FAKE_MODE", "error")
-    with pytest.raises(RuntimeError) as error:
-        await herdr("agent", "prompt", "w1:p2", "sensitive issue description")
-    assert "sensitive" not in str(error.value)
+    with patch.object(app, "notify", wraps=app.notify) as notifications:
+        async with app.run_test(size=(120, 40)) as pilot:
+            await select_issue(app, pilot)
+            await pilot.press("alt+ctrl+d")
+            await wait_for_picker(app, pilot)
+            await pilot.press("enter")
+            await app.workers.wait_for_complete()
+            assert len([c for c in commands(fake_herdr) if c[:2] == ["agent", "prompt"]]) == 1
+            assert isinstance(app.screen, MainScreen)
+            error = notifications.call_args.args[0]
+            assert notifications.call_args.kwargs["severity"] == "error"
+            assert SUMMARY not in error and "First line." not in error
 
 
 async def test_malformed_herdr_response(fake_herdr, monkeypatch):

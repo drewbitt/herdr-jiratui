@@ -36,7 +36,8 @@ async def herdr(*args: str) -> dict:
     try:
         stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=15)
     except TimeoutError as error:
-        process.kill()
+        if process.returncode is None:
+            process.kill()
         await process.communicate()
         raise RuntimeError(
             "Herdr timed out. Check the target agent before trying again; "
@@ -49,7 +50,7 @@ async def herdr(*args: str) -> dict:
         raise
     try:
         response = json.loads(stdout or stderr)
-    except (ValueError, UnicodeDecodeError) as error:
+    except ValueError as error:
         raise RuntimeError("Herdr did not return a valid response.") from error
     if (
         not isinstance(response, dict)
@@ -58,7 +59,7 @@ async def herdr(*args: str) -> dict:
         or not isinstance(response.get("result"), dict)
     ):
         raise RuntimeError("Herdr could not complete the command. Check the agent and session.")
-    return response.get("result", {})
+    return response["result"]
 
 
 class AgentPicker(ModalScreen[str | None]):
@@ -82,7 +83,7 @@ class AgentPicker(ModalScreen[str | None]):
             yield OptionList(
                 *[
                     Text(
-                        f"{agent.get('name') or agent.get('display_agent') or agent['agent']}"
+                        f"{agent.get('display_agent') or agent['agent']}"
                         f" · {agent['pane_id']} · {agent['agent_status']} · {agent.get('cwd', '')}"
                     )
                     for agent in self.agents
@@ -143,7 +144,7 @@ class HerdrJiraApp(JiraApp):
             )
             # Recheck readiness after the picker and Jira request; the target may have changed.
             current = await herdr("agent", "get", target)
-            agent = current.get("agent", current)
+            agent = current.get("agent") or {}
             if agent.get("agent_status") not in {"idle", "done"}:
                 self.notify(
                     "That agent is no longer ready. Choose another agent.", severity="warning"
