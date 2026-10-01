@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+if ! command -v uv >/dev/null 2>&1; then
+  echo 'JiraTUI: uv is required. Install uv, then reopen this pane.' >&2
+  exit 1
+fi
+case "${1:-}" in
+  ""|-*) set -- herdr-jiratui "$@" ;;
+esac
+exec uv run --locked --no-dev --project "$root" "$@"

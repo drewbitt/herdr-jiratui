@@ -1,0 +1,29 @@
+[project]
+name = "herdr-jiratui"
+version = "0.1.0"
+description = "JiraTUI with one action to delegate an issue to a Herdr agent"
+readme = "README.md"
+requires-python = ">=3.12,<3.15"
+license = "MIT"
+dependencies = ["jiratui==1.15.0"]
+
+[project.scripts]
+herdr-jiratui = "herdr_jiratui:main"
+
+[build-system]
+requires = ["uv_build>=0.12.19,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "respx>=0.22", "ruff>=0.9"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

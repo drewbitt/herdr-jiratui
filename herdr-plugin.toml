@@ -1,0 +1,17 @@
+id = "drewbitt.jiratui"
+name = "JiraTUI"
+version = "0.1.0"
+min_herdr_version = "0.9.3"
+description = "JiraTUI in a tab, with issue delegation to existing Herdr agents"
+platforms = ["linux", "macos"]
+
+[[actions]]
+id = "open"
+title = "JiraTUI: open"
+command = ["sh", "bin/open"]
+
+[[panes]]
+id = "jira"
+title = "JiraTUI"
+placement = "tab"
+command = ["sh", "bin/run"]
