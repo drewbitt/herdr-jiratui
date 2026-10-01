@@ -11,11 +11,11 @@ picker and sends the issue's key, summary, link, and description through
 
 ## Use
 
-Requires Herdr 0.9.3+ and [uv](https://docs.astral.sh/uv/). uv installs Python
-3.14 and the locked dependencies when needed.
+Requires Herdr 0.9.3+ and [uv](https://docs.astral.sh/uv/). uv installs the project's
+Python version and locked dependencies when needed.
 
 ```sh
-uvx jiratui@1.15.0 configure create  # skip if JiraTUI is already configured
+uvx jiratui configure create  # skip if JiraTUI is already configured
 herdr plugin install drewbitt/herdr-jiratui
 herdr plugin action invoke drewbitt.jiratui.open
 ```
@@ -34,9 +34,13 @@ uv run ruff format --check .
 uv run pytest
 ```
 
-JiraTUI is pinned to 1.15.0 because we use its internal application and selection
-interfaces. Test upgrades before changing that pin. Tests cover the terminal
-shortcut, issue handoff, agent readiness, and failed delivery using fake Jira
+JiraTUI is pinned in `pyproject.toml` because we use its internal application and
+selection interfaces. Test upgrades before changing that pin. Tests cover the
+terminal shortcut, issue handoff, agent readiness, and failed delivery using fake Jira
 responses and a fake Herdr executable.
+
+The Renovate config schedules dependency and lock-file updates for the 1st and 15th.
+Updates need review; JiraTUI upgrades get their own PR. CI tests Python 3.12 and
+the version in `.python-version`, then builds the package.
 
 The screenshot uses fictional issues in a temporary Herdr session.
