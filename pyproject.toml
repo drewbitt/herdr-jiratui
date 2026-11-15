@@ -5,7 +5,7 @@ description = "JiraTUI with one action to delegate an issue to a Herdr agent"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
-dependencies = ["jiratui==1.15.0"]
+dependencies = ["jiratui==1.20.0"]
 
 [project.scripts]
 herdr-jiratui = "herdr_jiratui:main"
